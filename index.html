@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard de Orçamento</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;background-color:#f0f2f5;color:#333;margin:0;padding:20px}h1{text-align:center;color:#1a1a1a}
+        .dashboard{max-width:1800px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+        .filters{background-color:#fff;padding:15px 20px;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,.05);display:flex;flex-wrap:wrap;gap:15px;align-items:center}
+        .filters label{font-weight:500;font-size:14px}
+        .filters select{padding:8px 12px;border:1px solid #ccc;border-radius:5px;background-color:#fff;font-size:14px}
+        .kpi-container{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:20px}
+        .kpi-card{background-color:#fff;padding:20px;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,.05);text-align:center}
+        .kpi-card h3{margin:0 0 10px;font-size:16px;font-weight:500;color:#555}
+        .kpi-card p{margin:0;font-size:36px;font-weight:700;color:#1a1a1a}
+        .charts-container{display:grid;grid-template-columns:1fr;gap:20px}
+        @media(min-width:900px){.charts-container{grid-template-columns:repeat(2,1fr)}}
+        .chart-card-full{grid-column:1/-1;background-color:#fff;padding:20px;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,.05);height:450px}
+        .chart-card{background-color:#fff;padding:20px;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,.05);height:auto;min-height:480px}
+        .chart-card h4{margin-top:0;text-align:center;font-weight:500}
+        .table-controls{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+        .table-controls input{padding:6px 10px;border:1px solid #ccc;border-radius:4px;width:50%}
+        .table-container{max-height:300px;overflow-y:auto}
+        table{width:100%;border-collapse:collapse}
+        th,td{border:1px solid #ddd;padding:8px;text-align:left;vertical-align: top;}
+        th{background-color:#f2f2f2;font-weight:600;position:sticky;top:0}
+        tr:nth-child(even){background-color:#f9f9f9}
+        .pagination{display:flex;justify-content:center;gap:5px;margin-top:15px}
+        .pagination button{padding:5px 10px;border:1px solid #ccc;background-color:#fff;cursor:pointer;border-radius:4px}
+        .pagination button.active{background-color:#0d6efd;color:#fff;border-color:#0d6efd}
+        .pagination button:disabled{cursor:not-allowed;opacity:0.5}
+    </style>
+</head>
+<body>
+    <h1>Dashboard de Orçamento e Manutenção</h1>
+
+    <div class="dashboard">
+        <!-- SEÇÃO 1: FILTROS -->
+        <div class="filters">
+            <label for="filter-ano">Ano:</label>
+            <select id="filter-ano" title="Filtrar por Ano"><option value="">Todos</option></select>
+            <label for="filter-mes">Mês:</label>
+            <select id="filter-mes" title="Filtrar por Mês">
+                <option value="">Todos</option>
+                <option value="1">Janeiro</option><option value="2">Fevereiro</option><option value="3">Março</option><option value="4">Abril</option><option value="5">Maio</option><option value="6">Junho</option><option value="7">Julho</option><option value="8">Agosto</option><option value="9">Setembro</option><option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option>
+            </select>
+            <label for="filter-orcamento">Orçamento:</label>
+            <select id="filter-orcamento" title="Filtrar por Orçamento"><option value="">Todos</option></select>
+        </div>
+
+        <!-- SEÇÃO 2: KPIs -->
+        <div class="kpi-container">
+            <div class="kpi-card"><h3>Valor Total Gasto</h3><p id="kpi-valor-total">--</p></div>
+            <div class="kpi-card"><h3>Valor Orçado</h3><p id="kpi-valor-orcado">--</p></div>
+            <div class="kpi-card"><h3>Quantidade de Serviços</h3><p id="kpi-qtd-servicos">--</p></div>
+        </div>
+
+        <!-- SEÇÃO 3: GRÁFICOS E TABELAS -->
+        <div class="charts-container">
+            <div class="chart-card-full">
+                <h4>Valor Gasto por Departamento</h4>
+                <canvas id="chart-gasto-depto"></canvas>
+            </div>
+            <div class="chart-card">
+                <h4>Valor por Tombamento</h4>
+                <div class="table-controls">
+                    <input type="text" id="search-valor-tombamento" placeholder="Pesquisar por tombo...">
+                </div>
+                <div id="table-valor-tombamento" class="table-container"></div>
+                <div id="pagination-valor-tombamento" class="pagination"></div>
+            </div>
+            <div class="chart-card">
+                <h4>Serviços por Tombamento</h4>
+                <div class="table-controls">
+                    <input type="text" id="search-servicos-tombamento" placeholder="Pesquisar por tombo ou item...">
+                </div>
+                <div id="table-servicos-tombamento" class="table-container"></div>
+                <div id="pagination-servicos-tombamento" class="pagination"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ** CORREÇÃO APLICADA AQUI **
+        const API_BASE_URL = 'https://backend-dashboard-ar.onrender.com';
+        
+        let activeCharts = {};
+        let fullValorTombamentoData = [];
+        let fullServicosTombamentoData = [];
+        const ROWS_PER_PAGE = 8;
+
+        function formatCurrency(value) {
+            return parseFloat(value).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        }
+
+        function drawChart(canvasId, type, labels, data, chartLabel, colorPalette) {
+            if (activeCharts[canvasId]) activeCharts[canvasId].destroy();
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            activeCharts[canvasId] = new Chart(ctx, {
+                type: type,
+                data: { labels, datasets: [{ label: chartLabel, data, backgroundColor: colorPalette }] },
+                options: { responsive: true, maintainAspectRatio: false, indexAxis: 'x' }
+            });
+        }
+        
+        function renderPaginatedTable(tableKey, currentPage = 1) {
+            const isValorTable = tableKey === 'valor';
+            const fullData = isValorTable ? fullValorTombamentoData : fullServicosTombamentoData;
+            const containerId = `table-${tableKey}-tombamento`;
+            const paginationId = `pagination-${tableKey}-tombamento`;
+            const searchId = `search-${tableKey}-tombamento`;
+            
+            const container = document.getElementById(containerId);
+            const paginationContainer = document.getElementById(paginationId);
+            const searchInput = document.getElementById(searchId);
+            if (!container || !paginationContainer || !searchInput) return;
+
+            const searchTerm = searchInput.value.toLowerCase();
+            const filteredData = fullData.filter(row => {
+                const tombo = String(row[0]).toLowerCase();
+                const itemsString = isValorTable ? '' : row[1].join(' ').toLowerCase();
+                return tombo.includes(searchTerm) || itemsString.includes(searchTerm);
+            });
+
+            const totalPages = Math.ceil(filteredData.length / ROWS_PER_PAGE);
+            const start = (currentPage - 1) * ROWS_PER_PAGE;
+            const end = start + ROWS_PER_PAGE;
+            const paginatedData = filteredData.slice(start, end);
+
+            let tableHTML = '<table><thead><tr>';
+            if (isValorTable) {
+                tableHTML += '<th>Tombamento</th><th>Valor Gasto</th>';
+            } else {
+                tableHTML += '<th>Tombamento</th><th>Nº de Serviços</th><th>Itens</th>';
+            }
+            tableHTML += '</tr></thead><tbody>';
+
+            if (paginatedData.length === 0) {
+                const colSpan = isValorTable ? 2 : 3;
+                tableHTML += `<tr><td colspan="${colSpan}" style="text-align:center;">Nenhum resultado encontrado.</td></tr>`;
+            } else {
+                paginatedData.forEach(row => {
+                    tableHTML += '<tr>';
+                    if (isValorTable) {
+                        tableHTML += `<td>${row[0]}</td><td>${formatCurrency(row[1])}</td>`;
+                    } else {
+                        tableHTML += `<td>${row[0]}</td><td>${row[1].length}</td><td>${row[1].join('<br>')}</td>`;
+                    }
+                    tableHTML += '</tr>';
+                });
+            }
+            
+            tableHTML += '</tbody></table>';
+            container.innerHTML = tableHTML;
+            
+            let paginationHTML = '';
+            for (let i = 1; i <= totalPages; i++) {
+                paginationHTML += `<button class="${i === currentPage ? 'active' : ''}" data-page="${i}">${i}</button>`;
+            }
+            paginationContainer.innerHTML = paginationHTML;
+        }
+
+
+        function updateFilterOptions(opcoesFiltro) {
+            const createOptions = (selectId, values) => {
+                const select = document.getElementById(selectId);
+                if (!select) return;
+                const currentValue = select.value;
+                select.innerHTML = '<option value="">Todos</option>';
+                values.sort().forEach(val => {
+                    const option = document.createElement('option');
+                    option.value = val;
+                    option.textContent = val;
+                    select.appendChild(option);
+                });
+                if (select.querySelector(`option[value="${currentValue}"]`)) {
+                    select.value = currentValue;
+                }
+            };
+            createOptions('filter-ano', opcoesFiltro.ano);
+            createOptions('filter-orcamento', opcoesFiltro.orcamento);
+        }
+        
+        async function refreshDashboard() {
+            const params = new URLSearchParams();
+            const addParam = (id, name) => {
+                const value = document.getElementById(id)?.value;
+                if (value) params.append(name, value);
+            };
+            addParam('filter-ano', 'ano');
+            addParam('filter-mes', 'mes');
+            addParam('filter-orcamento', 'orcamento');
+            const queryParams = params.toString() ? `?${params.toString()}` : '';
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/orcamento-data${queryParams}`);
+                const data = await response.json();
+
+                document.getElementById('kpi-valor-total').textContent = formatCurrency(data.kpis.valorTotal);
+                document.getElementById('kpi-valor-orcado').textContent = formatCurrency(data.kpis.valorOrcado);
+                document.getElementById('kpi-qtd-servicos').textContent = data.kpis.qtdServicos;
+                updateFilterOptions(data.opcoesFiltro);
+
+                const deptoColors = '#6b9997';
+                drawChart('chart-gasto-depto', 'bar', Object.keys(data.graficos.gastoPorDepartamento), Object.values(data.graficos.gastoPorDepartamento), 'Valor Gasto', deptoColors);
+
+                fullValorTombamentoData = Object.entries(data.graficos.valorPorTombamento).sort((a,b) => b[1] - a[1]);
+                renderPaginatedTable('valor', 1);
+
+                fullServicosTombamentoData = Object.entries(data.graficos.servicosPorTombamento).sort((a,b) => b[1].length - a[1].length);
+                renderPaginatedTable('servicos', 1);
+
+            } catch (error) {
+                console.error("Erro ao carregar dados do dashboard de orçamento:", error);
+            }
+        }
+
+        function setupDynamicFilters() {
+            const filterIds = ['filter-ano', 'filter-mes', 'filter-orcamento'];
+            filterIds.forEach(id => {
+                document.getElementById(id)?.addEventListener('change', refreshDashboard);
+            });
+
+            document.getElementById('search-valor-tombamento')?.addEventListener('input', () => renderPaginatedTable('valor', 1));
+            document.getElementById('search-servicos-tombamento')?.addEventListener('input', () => renderPaginatedTable('servicos', 1));
+            document.getElementById('pagination-valor-tombamento')?.addEventListener('click', (e) => {
+                if (e.target.tagName === 'BUTTON') renderPaginatedTable('valor', parseInt(e.target.dataset.page));
+            });
+            document.getElementById('pagination-servicos-tombamento')?.addEventListener('click', (e) => {
+                if (e.target.tagName === 'BUTTON') renderPaginatedTable('servicos', parseInt(e.target.dataset.page));
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            setupDynamicFilters();
+            refreshDashboard(); 
+        });
+    </script>
+
+</body>
+</html>
