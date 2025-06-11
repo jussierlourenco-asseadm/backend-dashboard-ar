@@ -31,10 +31,43 @@
         .pagination button{padding:5px 10px;border:1px solid #ccc;background-color:#fff;cursor:pointer;border-radius:4px}
         .pagination button.active{background-color:#0d6efd;color:#fff;border-color:#0d6efd}
         .pagination button:disabled{cursor:not-allowed;opacity:0.5}
+
+        /* ESTILO PARA O LOADING */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(240, 242, 245, 0.85); /* Combina com o fundo */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            font-size: 1.2em;
+            color: #333;
+            font-weight: 500;
+            backdrop-filter: blur(2px);
+        }
+
+        /* ESTILO PARA O RODAPÉ */
+        .dashboard-footer {
+            text-align: center;
+            padding: 20px 0;
+            margin-top: 30px;
+            color: #888;
+            font-size: 14px;
+            border-top: 1px solid #ddd;
+        }
     </style>
 </head>
 <body>
-    <h1>Dashboard de Orçamento / Manutenção (AR-CONDICIONADO)</h1>
+    <!-- MENSAGEM DE LOADING -->
+    <div id="loading-indicator" class="loading-overlay">
+        <div>Aguarde, carregando dados...</div>
+    </div>
+
+    <h1>Dashboard de Manutenção (AR-CONDICIONADO)</h1>
 
     <div class="dashboard">
         <!-- SEÇÃO 1: FILTROS -->
@@ -82,10 +115,13 @@
         </div>
     </div>
 
+    <!-- RODAPÉ ATUALIZADO -->
+    <footer class="dashboard-footer">
+        © Desenvolvido pela Assessoria de Administração do Centro de Biociências
+    </footer>
+
     <script>
-        // ** CORREÇÃO APLICADA AQUI **
         const API_BASE_URL = 'https://backend-dashboard-ar.onrender.com';
-        
         let activeCharts = {};
         let fullValorTombamentoData = [];
         let fullServicosTombamentoData = [];
@@ -184,6 +220,10 @@
         }
         
         async function refreshDashboard() {
+            // MOSTRAR LOADING
+            const loadingIndicator = document.getElementById('loading-indicator');
+            loadingIndicator.style.display = 'flex';
+
             const params = new URLSearchParams();
             const addParam = (id, name) => {
                 const value = document.getElementById(id)?.value;
@@ -214,6 +254,12 @@
 
             } catch (error) {
                 console.error("Erro ao carregar dados do dashboard de orçamento:", error);
+                loadingIndicator.innerHTML = '<div>Falha ao carregar dados. Tente novamente mais tarde.</div>';
+            } finally {
+                // ESCONDER LOADING
+                if(loadingIndicator.innerHTML.includes('Aguarde')) {
+                   loadingIndicator.style.display = 'none';
+                }
             }
         }
 
