@@ -27,42 +27,18 @@
         th,td{border:1px solid #ddd;padding:8px;text-align:left;vertical-align: top;}
         th{background-color:#f2f2f2;font-weight:600;position:sticky;top:0}
         tr:nth-child(even){background-color:#f9f9f9}
-        .pagination{display:flex;justify-content:center;gap:5px;margin-top:15px}
+        
+        /* NOVO: Estilo para a nova paginação */
+        .pagination{display:flex;justify-content:center;align-items:center;gap:10px;margin-top:15px}
+        .pagination span {font-size: 14px; color: #555;}
         .pagination button{padding:5px 10px;border:1px solid #ccc;background-color:#fff;cursor:pointer;border-radius:4px}
-        .pagination button.active{background-color:#0d6efd;color:#fff;border-color:#0d6efd}
-        .pagination button:disabled{cursor:not-allowed;opacity:0.5}
+        .pagination button:disabled{cursor:not-allowed;opacity:0.5; background-color: #f8f8f8;}
 
-        /* ESTILO PARA O LOADING */
-        .loading-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(240, 242, 245, 0.85); /* Combina com o fundo */
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 9999;
-            font-size: 1.2em;
-            color: #333;
-            font-weight: 500;
-            backdrop-filter: blur(2px);
-        }
-
-        /* ESTILO PARA O RODAPÉ */
-        .dashboard-footer {
-            text-align: center;
-            padding: 20px 0;
-            margin-top: 30px;
-            color: #888;
-            font-size: 14px;
-            border-top: 1px solid #ddd;
-        }
+        .loading-overlay {position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(240, 242, 245, 0.85); display: flex; justify-content: center; align-items: center; z-index: 9999; font-size: 1.2em; color: #333; font-weight: 500; backdrop-filter: blur(2px);}
+        .dashboard-footer {text-align: center; padding: 20px 0; margin-top: 30px; color: #888; font-size: 14px; border-top: 1px solid #ddd;}
     </style>
 </head>
 <body>
-    <!-- MENSAGEM DE LOADING -->
     <div id="loading-indicator" class="loading-overlay">
         <div>Aguarde, carregando dados...</div>
     </div>
@@ -70,7 +46,6 @@
     <h1>Dashboard de Manutenção (AR-CONDICIONADO)</h1>
 
     <div class="dashboard">
-        <!-- SEÇÃO 1: FILTROS -->
         <div class="filters">
             <label for="filter-ano">Ano:</label>
             <select id="filter-ano" title="Filtrar por Ano"><option value="">Todos</option></select>
@@ -83,14 +58,12 @@
             <select id="filter-orcamento" title="Filtrar por Orçamento"><option value="">Todos</option></select>
         </div>
 
-        <!-- SEÇÃO 2: KPIs -->
         <div class="kpi-container">
             <div class="kpi-card"><h3>VALOR TOTAL</h3><p id="kpi-valor-total">--</p></div>
             <div class="kpi-card"><h3>VALOR ORÇAMENTO</h3><p id="kpi-valor-orcado">--</p></div>
             <div class="kpi-card"><h3>QUANTIDADE DE SERVIÇOS</h3><p id="kpi-qtd-servicos">--</p></div>
         </div>
 
-        <!-- SEÇÃO 3: GRÁFICOS E TABELAS -->
         <div class="charts-container">
             <div class="chart-card-full">
                 <h4>Valor Gasto por Departamento</h4>
@@ -99,7 +72,7 @@
             <div class="chart-card">
                 <h4>Valor por Tombamento</h4>
                 <div class="table-controls">
-                    <input type="text" id="search-valor-tombamento" placeholder="Pesquisar por tombo...">
+                    <input type="text" id="search-valor-tombamento" placeholder="Pesquisar por tombo ou local...">
                 </div>
                 <div id="table-valor-tombamento" class="table-container"></div>
                 <div id="pagination-valor-tombamento" class="pagination"></div>
@@ -107,7 +80,7 @@
             <div class="chart-card">
                 <h4>Serviços por Tombamento</h4>
                 <div class="table-controls">
-                    <input type="text" id="search-servicos-tombamento" placeholder="Pesquisar por tombo ou item...">
+                    <input type="text" id="search-servicos-tombamento" placeholder="Pesquisar por tombo, local ou item...">
                 </div>
                 <div id="table-servicos-tombamento" class="table-container"></div>
                 <div id="pagination-servicos-tombamento" class="pagination"></div>
@@ -115,7 +88,6 @@
         </div>
     </div>
 
-    <!-- RODAPÉ ATUALIZADO -->
     <footer class="dashboard-footer">
         © Desenvolvido pela Assessoria de Administração do Centro de Biociências
     </footer>
@@ -141,6 +113,9 @@
             });
         }
         
+        // =================================================================
+        // FUNÇÃO DE RENDERIZAÇÃO DA TABELA E PAGINAÇÃO (TOTALMENTE ATUALIZADA)
+        // =================================================================
         function renderPaginatedTable(tableKey, currentPage = 1) {
             const isValorTable = tableKey === 'valor';
             const fullData = isValorTable ? fullValorTombamentoData : fullServicosTombamentoData;
@@ -154,35 +129,41 @@
             if (!container || !paginationContainer || !searchInput) return;
 
             const searchTerm = searchInput.value.toLowerCase();
+            
+            // Lógica de busca atualizada para o novo formato de dados e para incluir o local
             const filteredData = fullData.filter(row => {
-                const tombo = String(row[0]).toLowerCase();
-                const itemsString = isValorTable ? '' : row[1].join(' ').toLowerCase();
-                return tombo.includes(searchTerm) || itemsString.includes(searchTerm);
+                const tombo = String(row.tombamento).toLowerCase();
+                const local = String(row.local).toLowerCase();
+                const itemsString = isValorTable ? '' : row.servicos.join(' ').toLowerCase();
+                return tombo.includes(searchTerm) || local.includes(searchTerm) || itemsString.includes(searchTerm);
             });
 
-            const totalPages = Math.ceil(filteredData.length / ROWS_PER_PAGE);
+            const totalPages = Math.ceil(filteredData.length / ROWS_PER_PAGE) || 1;
+            currentPage = Math.min(currentPage, totalPages); // Garante que a página atual não seja maior que o total
             const start = (currentPage - 1) * ROWS_PER_PAGE;
             const end = start + ROWS_PER_PAGE;
             const paginatedData = filteredData.slice(start, end);
 
+            // Cabeçalho da tabela atualizado para incluir "Local"
             let tableHTML = '<table><thead><tr>';
             if (isValorTable) {
-                tableHTML += '<th>Tombamento</th><th>Valor Gasto</th>';
+                tableHTML += '<th>Tombamento</th><th>Local</th><th>Valor Gasto</th>';
             } else {
-                tableHTML += '<th>Tombamento</th><th>Nº de Serviços</th><th>Itens</th>';
+                tableHTML += '<th>Tombamento</th><th>Local</th><th>Nº de Serviços</th><th>Itens</th>';
             }
             tableHTML += '</tr></thead><tbody>';
 
             if (paginatedData.length === 0) {
-                const colSpan = isValorTable ? 2 : 3;
+                const colSpan = isValorTable ? 3 : 4;
                 tableHTML += `<tr><td colspan="${colSpan}" style="text-align:center;">Nenhum resultado encontrado.</td></tr>`;
             } else {
+                // Corpo da tabela atualizado para usar as propriedades do objeto
                 paginatedData.forEach(row => {
                     tableHTML += '<tr>';
                     if (isValorTable) {
-                        tableHTML += `<td>${row[0]}</td><td>${formatCurrency(row[1])}</td>`;
+                        tableHTML += `<td>${row.tombamento}</td><td>${row.local}</td><td>${formatCurrency(row.valor)}</td>`;
                     } else {
-                        tableHTML += `<td>${row[0]}</td><td>${row[1].length}</td><td>${row[1].join('<br>')}</td>`;
+                        tableHTML += `<td>${row.tombamento}</td><td>${row.local}</td><td>${row.servicos.length}</td><td>${row.servicos.join('<br>')}</td>`;
                     }
                     tableHTML += '</tr>';
                 });
@@ -191,13 +172,16 @@
             tableHTML += '</tbody></table>';
             container.innerHTML = tableHTML;
             
-            let paginationHTML = '';
-            for (let i = 1; i <= totalPages; i++) {
-                paginationHTML += `<button class="${i === currentPage ? 'active' : ''}" data-page="${i}">${i}</button>`;
-            }
+            // Lógica de Paginação Totalmente Nova
+            let paginationHTML = `
+                <button data-page="1" ${currentPage === 1 ? 'disabled' : ''}>« Início</button>
+                <button data-page="${currentPage - 1}" ${currentPage === 1 ? 'disabled' : ''}>‹ Anterior</button>
+                <span>Página ${currentPage} de ${totalPages}</span>
+                <button data-page="${currentPage + 1}" ${currentPage === totalPages ? 'disabled' : ''}>Próximo ›</button>
+                <button data-page="${totalPages}" ${currentPage === totalPages ? 'disabled' : ''}>Fim »</button>
+            `;
             paginationContainer.innerHTML = paginationHTML;
         }
-
 
         function updateFilterOptions(opcoesFiltro) {
             const createOptions = (selectId, values) => {
@@ -220,7 +204,6 @@
         }
         
         async function refreshDashboard() {
-            // MOSTRAR LOADING
             const loadingIndicator = document.getElementById('loading-indicator');
             loadingIndicator.style.display = 'flex';
 
@@ -246,17 +229,17 @@
                 const deptoColors = '#6b9997';
                 drawChart('chart-gasto-depto', 'bar', Object.keys(data.graficos.gastoPorDepartamento), Object.values(data.graficos.gastoPorDepartamento), 'Valor Gasto', deptoColors);
 
-                fullValorTombamentoData = Object.entries(data.graficos.valorPorTombamento).sort((a,b) => b[1] - a[1]);
+                // Lógica de ordenação atualizada para o novo formato de dados
+                fullValorTombamentoData = data.graficos.valorPorTombamento.sort((a,b) => b.valor - a.valor);
                 renderPaginatedTable('valor', 1);
 
-                fullServicosTombamentoData = Object.entries(data.graficos.servicosPorTombamento).sort((a,b) => b[1].length - a[1].length);
+                fullServicosTombamentoData = data.graficos.servicosPorTombamento.sort((a,b) => b.servicos.length - a.servicos.length);
                 renderPaginatedTable('servicos', 1);
 
             } catch (error) {
                 console.error("Erro ao carregar dados do dashboard de orçamento:", error);
                 loadingIndicator.innerHTML = '<div>Falha ao carregar dados. Tente novamente mais tarde.</div>';
             } finally {
-                // ESCONDER LOADING
                 if(loadingIndicator.innerHTML.includes('Aguarde')) {
                    loadingIndicator.style.display = 'none';
                 }
@@ -264,18 +247,21 @@
         }
 
         function setupDynamicFilters() {
-            const filterIds = ['filter-ano', 'filter-mes', 'filter-orcamento'];
-            filterIds.forEach(id => {
+            ['filter-ano', 'filter-mes', 'filter-orcamento'].forEach(id => {
                 document.getElementById(id)?.addEventListener('change', refreshDashboard);
             });
 
             document.getElementById('search-valor-tombamento')?.addEventListener('input', () => renderPaginatedTable('valor', 1));
             document.getElementById('search-servicos-tombamento')?.addEventListener('input', () => renderPaginatedTable('servicos', 1));
+            
+            // Lógica de evento da paginação simplificada
             document.getElementById('pagination-valor-tombamento')?.addEventListener('click', (e) => {
-                if (e.target.tagName === 'BUTTON') renderPaginatedTable('valor', parseInt(e.target.dataset.page));
+                const button = e.target.closest('button');
+                if (button && !button.disabled) renderPaginatedTable('valor', parseInt(button.dataset.page));
             });
             document.getElementById('pagination-servicos-tombamento')?.addEventListener('click', (e) => {
-                if (e.target.tagName === 'BUTTON') renderPaginatedTable('servicos', parseInt(e.target.dataset.page));
+                const button = e.target.closest('button');
+                if (button && !button.disabled) renderPaginatedTable('servicos', parseInt(button.dataset.page));
             });
         }
 
@@ -284,6 +270,5 @@
             refreshDashboard(); 
         });
     </script>
-
 </body>
 </html>
